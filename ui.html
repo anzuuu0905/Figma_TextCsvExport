@@ -16,36 +16,15 @@
 </head>
 
 <body>
-  <h2>Export Text Layers as CSV</h2>
-  <button id="downloadButton" style="display: none;">Download CSV</button>
-  <p id="message">Waiting for data...</p>
+  <h2>Export Text Layers to Google Sheets</h2>
+  <button id="sendButton">Send to Google Sheets</button>
+  <p id="message">Click the button to export data to Google Sheets.</p>
 
   <script>
-    let csvData = "";
-
-    onmessage = (event) => {
-      const message = event.data.pluginMessage;
-      console.log("Message received from Figma:", message); // デバッグ用のログ
-
-      if (message.type === "error") {
-        document.getElementById("message").textContent = message.message;
-      } else if (message.type === "csv") {
-        csvData = message.data;
-        document.getElementById("message").textContent = "Data ready to download!";
-        document.getElementById("downloadButton").style.display = "block";
-      }
-    };
-
-    document.getElementById("downloadButton").addEventListener("click", () => {
-      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "text_layers.csv");
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    document.getElementById("sendButton").addEventListener("click", () => {
+      document.getElementById("message").textContent = "Sending data to Google Sheets...";
+      // Figmaプラグインにデータ送信のトリガーメッセージを送る
+      parent.postMessage({ pluginMessage: { type: "sendData" } }, "*");
     });
   </script>
 </body>
