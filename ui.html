@@ -16,12 +16,14 @@
 </head>
 
 <body>
-  <h2>Export Text Layers as CSV</h2>
-  <button id="downloadButton" style="display: none;">Download CSV</button>
-  <p id="message">Waiting for data...</p>
+  <h2>テキストデータ抽出</h2>
+  <button id="downloadButton" style="display: none;">データ抽出</button>
+  <p id="message"></p>
 
   <script>
     let csvData = "";
+    // document.getElementById("message").textContent = "";
+    // document.getElementById("downloadButton").style.display = "none";
 
     onmessage = (event) => {
       const message = event.data.pluginMessage;
@@ -31,7 +33,7 @@
         document.getElementById("message").textContent = message.message;
       } else if (message.type === "csv") {
         csvData = message.data;
-        document.getElementById("message").textContent = "Data ready to download!";
+        document.getElementById("message").textContent = "";
         document.getElementById("downloadButton").style.display = "block";
       }
     };
