@@ -15,6 +15,8 @@
   </style>
 </head>
 
+
+
 <body>
   <h2>テキストデータ抽出</h2>
   <button id="downloadButton" style="display: none;">データ抽出</button>
@@ -22,32 +24,42 @@
 
   <script>
     let csvData = "";
-    // document.getElementById("message").textContent = "";
-    // document.getElementById("downloadButton").style.display = "none";
 
     onmessage = (event) => {
-      const message = event.data.pluginMessage;
-      console.log("Message received from Figma:", message); // デバッグ用のログ
+      try {
+        const message = event.data.pluginMessage;
+        console.log("Message received from Figma:", message);
 
-      if (message.type === "error") {
-        document.getElementById("message").textContent = message.message;
-      } else if (message.type === "csv") {
-        csvData = message.data;
-        document.getElementById("message").textContent = "";
-        document.getElementById("downloadButton").style.display = "block";
+        if (message.type === "error") {
+          document.getElementById("message").textContent = `エラー: ${message.message}`;
+        } else if (message.type === "csv") {
+          csvData = message.data;
+          document.getElementById("message").textContent = "データの準備ができました";
+          document.getElementById("downloadButton").style.display = "block";
+        }
+      } catch (error) {
+        document.getElementById("message").textContent = `予期せぬエラーが発生しました: ${error.message}`;
       }
     };
 
     document.getElementById("downloadButton").addEventListener("click", () => {
-      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "text_layers.csv");
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        if (!csvData) {
+          throw new Error("データが見つかりません");
+        }
+        const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "text_layers.csv");
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url); // メモリリークを防ぐ
+      } catch (error) {
+        document.getElementById("message").textContent = `ダウンロード中にエラーが発生しました: ${error.message}`;
+      }
     });
   </script>
 </body>
