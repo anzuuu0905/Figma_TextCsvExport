@@ -1,67 +1,73 @@
+
 <!DOCTYPE html>
 <html>
-
 <head>
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-    }
-
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-    }
-  </style>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>Figma Text Extractor</title>
 </head>
-
-
-
 <body>
-  <h2>テキストデータ抽出</h2>
-  <button id="downloadButton" style="display: none;">データ抽出</button>
-  <p id="message"></p>
+  <button onclick="sendToSheet()">スプレッドシートに送信</button>
+  <div id="status"></div>
 
   <script>
-    let csvData = "";
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxMdPpFqSPrFBDPubJHKMOCxP_u0CVCMx2EVGY5s_vw83FWWgqg6TSgnYnkltU6Mjgv/exec';
+      let extractedData = [];
 
     onmessage = (event) => {
-      try {
-        const message = event.data.pluginMessage;
-        console.log("Message received from Figma:", message);
-
-        if (message.type === "error") {
-          document.getElementById("message").textContent = `エラー: ${message.message}`;
-        } else if (message.type === "csv") {
-          csvData = message.data;
-          document.getElementById("message").textContent = "データの準備ができました";
-          document.getElementById("downloadButton").style.display = "block";
-        }
-      } catch (error) {
-        document.getElementById("message").textContent = `予期せぬエラーが発生しました: ${error.message}`;
+      if (event.data.pluginMessage.type === 'send-text-data') {
+        extractedData = event.data.pluginMessage.data;
+        console.log('データを受信:', extractedData.length + '件');
       }
     };
 
-    document.getElementById("downloadButton").addEventListener("click", () => {
+    async function sendToSheet() {
+      updateStatus('送信中...');
+
       try {
-        if (!csvData) {
-          throw new Error("データが見つかりません");
-        }
-        const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", "text_layers.csv");
-        link.style.display = "none";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url); // メモリリークを防ぐ
+        const response = await fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors',  // これを追加
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify({
+            spreadsheetId: "12SiOW1il5v95quDUM4xU_h12fJvI6fuXs9KmMhTA084",
+            sheetName: "シート1",
+            data: extractedData
+          })
+        });
+
+        // no-corsモードではresponse.okが使えないので、
+        // エラーが発生しなければ成功とみなす
+        onSuccess(extractedData.length);
+
       } catch (error) {
-        document.getElementById("message").textContent = `ダウンロード中にエラーが発生しました: ${error.message}`;
+        onError(error);
       }
-    });
+    }
+
+    function onSuccess(totalRows) {
+      const message = `成功: 全${totalRows}件のデータを送信しました`;
+      updateStatus(message);
+      parent.postMessage({ pluginMessage: {
+        type: 'complete',
+        message: message
+      }}, '*');
+    }
+
+    function onError(error) {
+      const errorMessage = `送信エラー: ${error.message || error}`;
+      updateStatus(errorMessage);
+      parent.postMessage({ pluginMessage: {
+        type: 'error',
+        message: errorMessage
+      }}, '*');
+    }
+
+    function updateStatus(message) {
+      document.getElementById('status').textContent = message;
+    }
   </script>
 </body>
-
 </html>
