@@ -1,74 +1,83 @@
 figma.showUI(__html__, { width: 300, height: 200 });
 
-// テキストレイヤーを全て取得
-const textNodes = figma.currentPage.findAllWithCriteria({
-  types: ['TEXT']
+// 全ページのテキストレイヤーを取得
+let allTextNodes = [];
+figma.root.children.forEach(page => {
+  const textNodes = page.findAllWithCriteria({
+    types: ['TEXT']
+  });
+  allTextNodes = allTextNodes.concat(textNodes);
 });
+
+// シンボルを安全に文字列に変換する関数
+function safeStringify(value) {
+  if (typeof value === 'symbol') {
+    return value.toString().replace('Symbol(', '').replace(')', '');
+  }
+  return String(value || '');
+}
 
 // データを抽出して整形
 const extractedData = [
-  // ヘッダー行
   {
-    fileName: 'ファイル名',    // 追加：Figmaファイル名
-    pageName: 'ページ名',      // Figmaページ名
-    frame1: '最上位フレーム',  // 最上位
-    frame2: '2階層目',
-    frame3: '3階層目',
-    frame4: '4階層目',
-    frame5: '最下位フレーム',  // 最下位
+    pageName: 'ページ名',
+    frame1: 'フレーム1',
     id: 'ID',
     name: '名前',
     characters: 'テキスト',
     fontSize: 'フォントサイズ',
-    fontFamily: 'フォントファミリー',
-    fontStyle: 'フォントスタイル',
-    textAlignHorizontal: '水平位置',
-    textAlignVertical: '垂直位置',
+    fontFamily: 'フォント',
+    fontStyle: 'スタイル',
+    textAlignHorizontal: '横位置',
+    textAlignVertical: '縦位置',
     lineHeight: '行高',
-    letterSpacing: '文字間隔',
-    textCase: 'テキストケース',
-    textDecoration: 'テキスト装飾'
+    letterSpacing: '字間',
+    textCase: '大文字/小文字',
+    textDecoration: '装飾'
   },
-  ...textNodes.map(node => {
-    // 親フレームの階層を取得（最大5階層まで）
-    const parents = [];
+  ...allTextNodes.map(node => {
+    // 最上位のフレームを取得
+    let topLevelFrame = '';
     let parent = node.parent;
-    while (parent && parents.length < 5) {
-      parents.push(parent.name || '');  // 下位から順に追加
+    let pageName = '';
+
+    while (parent) {
+      if (parent.type === "PAGE") {
+        pageName = parent.name;
+        break;
+      }
+      if (parent.type === "FRAME" && parent.parent.type === "PAGE") {
+        topLevelFrame = parent.name;
+      }
       parent = parent.parent;
     }
 
-    // 5階層分の配列を確保（足りない分は空文字で埋める）
-    while (parents.length < 5) {
-      parents.push('');
-    }
-
-    // 配列を反転して最上位を先頭にする
-    parents.reverse();
-
     return {
-      fileName: figma.root.name,  // Figmaファイル名を追加
-      pageName: figma.currentPage.name,
-      frame1: parents[0],  // 最上位フレーム
-      frame2: parents[1],
-      frame3: parents[2],
-      frame4: parents[3],
-      frame5: parents[4],  // 最下位フレーム
-      id: node.id,
-      name: node.name,
-      characters: node.characters,
-      fontSize: node.fontSize,
-      fontFamily: node.fontName.family,
-      fontStyle: node.fontName.style,
-      textAlignHorizontal: node.textAlignHorizontal,
-      textAlignVertical: node.textAlignVertical,
-      lineHeight: typeof node.lineHeight === 'object' ? node.lineHeight.value + node.lineHeight.unit : 'AUTO',
-      letterSpacing: typeof node.letterSpacing === 'object' ? node.letterSpacing.value + node.letterSpacing.unit : '0%',
-      textCase: node.textCase,
-      textDecoration: node.textDecoration
+      pageName: safeStringify(pageName),
+      frame1: safeStringify(topLevelFrame),
+      id: safeStringify(node.id),
+      name: safeStringify(node.name),
+      characters: safeStringify(node.characters),
+      fontSize: safeStringify(node.fontSize),
+      fontFamily: safeStringify(node.fontName.family),
+      fontStyle: safeStringify(node.fontName.style),
+      textAlignHorizontal: safeStringify(node.textAlignHorizontal),
+      textAlignVertical: safeStringify(node.textAlignVertical),
+      lineHeight: typeof node.lineHeight === 'object' ?
+        safeStringify(node.lineHeight.value) + safeStringify(node.lineHeight.unit) :
+        'AUTO',
+      letterSpacing: typeof node.letterSpacing === 'object' ?
+        safeStringify(node.letterSpacing.value) + safeStringify(node.letterSpacing.unit) :
+        '0%',
+      textCase: safeStringify(node.textCase || 'ORIGINAL'),
+      textDecoration: safeStringify(node.textDecoration || 'NONE')
     };
   })
 ];
+
+// データをコンソールに出力して確認
+console.log('Extracted Data:', JSON.stringify(extractedData[1], null, 2));
+
 // UIにデータを送信
 figma.ui.postMessage({
   type: 'send-text-data',
@@ -81,11 +90,9 @@ figma.ui.onmessage = (msg) => {
     case 'complete':
       figma.notify('✅ ' + msg.message);
       break;
-
     case 'error':
       figma.notify('❌ ' + msg.message, { error: true });
       break;
-
     case 'close':
       figma.closePlugin();
       break;
