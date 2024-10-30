@@ -1,18 +1,71 @@
-
 <!DOCTYPE html>
 <html>
 <head>
   <base target="_top">
   <meta charset="utf-8">
   <title>Figma Text Extractor</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 20px;
+      margin: 0;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #e5e5e5;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 8px;
+      background-color: #18A0FB;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 10px;
+      padding: 8px;
+      font-size: 14px;
+    }
+  </style>
 </head>
 <body>
+  <div class="form-group">
+    <label for="spreadsheetUrl">スプレッドシートURL:</label>
+    <input type="text"
+           id="spreadsheetUrl"
+           placeholder="https://docs.google.com/spreadsheets/d/..."
+           required>
+  </div>
+
+  <div class="form-group">
+    <label for="sheetName">シート名:</label>
+    <input type="text"
+           id="sheetName"
+           placeholder="シート1"
+           value="シート1"
+           required>
+  </div>
+
   <button onclick="sendToSheet()">スプレッドシートに送信</button>
   <div id="status"></div>
 
   <script>
-  const GAS_URL = 'https://script.google.com/macros/s/AKfycbxMdPpFqSPrFBDPubJHKMOCxP_u0CVCMx2EVGY5s_vw83FWWgqg6TSgnYnkltU6Mjgv/exec';
-      let extractedData = [];
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxMdPpFqSPrFBDPubJHKMOCxP_u0CVCMx2EVGY5s_vw83FWWgqg6TSgnYnkltU6Mjgv/exec';
+    let extractedData = [];
 
     onmessage = (event) => {
       if (event.data.pluginMessage.type === 'send-text-data') {
@@ -21,27 +74,49 @@
       }
     };
 
+    function extractSpreadsheetId(url) {
+      try {
+        const trimmedUrl = url.trim();
+        const pattern = /\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/;
+        const match = trimmedUrl.match(pattern);
+
+        if (match && match[1]) {
+          return match[1];
+        }
+        throw new Error('有効なスプレッドシートURLを入力してください');
+      } catch (error) {
+        throw new Error('URLの解析に失敗しました');
+      }
+    }
+
     async function sendToSheet() {
+      const spreadsheetUrl = document.getElementById('spreadsheetUrl').value;
+      const sheetName = document.getElementById('sheetName').value;
+
+      if (!spreadsheetUrl || !sheetName) {
+        updateStatus('スプレッドシートURLとシート名を入力してください');
+        return;
+      }
+
       updateStatus('送信中...');
 
       try {
+        const spreadsheetId = extractSpreadsheetId(spreadsheetUrl);
+
         const response = await fetch(GAS_URL, {
           method: 'POST',
-          mode: 'no-cors',  // これを追加
+          mode: 'no-cors',
           headers: {
             'Content-Type': 'text/plain;charset=utf-8',
           },
           body: JSON.stringify({
-            spreadsheetId: "12SiOW1il5v95quDUM4xU_h12fJvI6fuXs9KmMhTA084",
-            sheetName: "シート1",
+            spreadsheetId: spreadsheetId,
+            sheetName: sheetName,
             data: extractedData
           })
         });
 
-        // no-corsモードではresponse.okが使えないので、
-        // エラーが発生しなければ成功とみなす
         onSuccess(extractedData.length);
-
       } catch (error) {
         onError(error);
       }
