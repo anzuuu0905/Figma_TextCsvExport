@@ -8,7 +8,8 @@
     "allowedDomains": [
       "https://script.google.com",
       "https://*.google.com",
-      "https://*.googleapis.com"
+      "https://*.googleapis.com",
+      "https://script.googleusercontent.com"
     ]
   },
   "editorType": [

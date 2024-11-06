@@ -60,7 +60,10 @@
            required>
   </div>
 
-  <button onclick="sendToSheet()">スプレッドシートに送信</button>
+  <div class="button-group">
+    <button onclick="sendToSheet()">エクスポート</button>
+    <button onclick="importFromSheet()">インポート</button>
+  </div>
   <div id="status"></div>
 
   <script>
@@ -143,6 +146,55 @@
     function updateStatus(message) {
       document.getElementById('status').textContent = message;
     }
+
+    async function importFromSheet() {
+      const spreadsheetUrl = document.getElementById('spreadsheetUrl').value;
+      const sheetName = document.getElementById('sheetName').value;
+
+      if (!spreadsheetUrl || !sheetName) {
+        updateStatus('スプレッドシートURLとシート名を入力してください');
+        return;
+      }
+
+      updateStatus('データを取得中...');
+
+      try {
+        const spreadsheetId = extractSpreadsheetId(spreadsheetUrl);
+        const gasUrl = `${GAS_URL}?spreadsheetId=${spreadsheetId}&sheetName=${sheetName}`;
+
+        const response = await fetch(gasUrl);
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        // Figmaプラグインにデータを送信
+        parent.postMessage({
+          pluginMessage: {
+            type: 'import-data',
+            data: result.data
+          }
+        }, '*');
+
+        updateStatus('データを取得しました');
+      } catch (error) {
+        updateStatus('エラー: ' + error.message);
+      }
+    }
+
+    // 既存のonmessageハンドラーを拡張
+    onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (msg.type === 'send-text-data') {
+        extractedData = msg.data;
+        console.log('データを受信:', extractedData.length + '件');
+      } else if (msg.type === 'import-complete') {
+        updateStatus(`${msg.count}件のテキストを更新しました`);
+      } else if (msg.type === 'import-error') {
+        updateStatus('インポートエラー: ' + msg.message);
+      }
+    };
   </script>
 </body>
 </html>

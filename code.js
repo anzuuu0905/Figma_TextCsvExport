@@ -1,4 +1,5 @@
 figma.showUI(__html__, { width: 300, height: 200 });
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxMdPpFqSPrFBDPubJHKMOCxP_u0CVCMx2EVGY5s_vw83FWWgqg6TSgnYnkltU6Mjgv/exec';
 
 // 全ページのテキストレイヤーを取得
 let allTextNodes = [];
@@ -98,9 +99,6 @@ const extractedData = [
   })
 ];
 
-// データをコンソールに出力して確認
-console.log('Extracted Data:', JSON.stringify(extractedData[1], null, 2));
-
 // UIにデータを送信
 figma.ui.postMessage({
   type: 'send-text-data',
@@ -108,16 +106,38 @@ figma.ui.postMessage({
 });
 
 // UIからのメッセージを受け取る
-figma.ui.onmessage = (msg) => {
-  switch (msg.type) {
-    case 'complete':
-      figma.notify('✅ ' + msg.message);
-      break;
-    case 'error':
-      figma.notify('❌ ' + msg.message, { error: true });
-      break;
-    case 'close':
-      figma.closePlugin();
-      break;
+figma.ui.onmessage = async (msg) => {
+  if (msg.type === 'import-data') {
+    try {
+      // 受信したデータの確認
+      console.log('受信したデータ:', {
+        データの件数: msg.data.length,
+        最初の行: msg.data[0],
+        最後の行: msg.data[msg.data.length - 1]
+      });
+
+      // データの構造を確認
+      if (msg.data && msg.data.length > 0) {
+        console.log('1行目のデータ構造:', Object.keys(msg.data[0]));
+        console.log('1行目の値:', msg.data[0]);
+      }
+
+      // 通知
+      figma.notify(`✅ ${msg.data.length}件のデータを受信しました`);
+
+      // UI側に完了を通知
+      figma.ui.postMessage({
+        type: 'import-complete',
+        count: msg.data.length
+      });
+
+    } catch (error) {
+      console.error('データ確認エラー:', error);
+      figma.notify('❌ エラー: ' + error.message, { error: true });
+      figma.ui.postMessage({
+        type: 'import-error',
+        message: error.message
+      });
+    }
   }
 };
