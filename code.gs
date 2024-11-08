@@ -1,58 +1,97 @@
-function doGet(e) {
-  const spreadsheetId = e.parameter.spreadsheetId;
-  const sheetName = e.parameter.sheetName;
-
+function doPost(e) {
   try {
-    // スプレッドシートを開く
-    const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-    const sheet = spreadsheet.getSheetByName(sheetName);
+    const { spreadsheetId, sheetName, data } = JSON.parse(e.postData.contents);
 
-    if (!sheet) {
-      throw new Error('指定されたシートが見つかりません');
+    const sheet = SpreadsheetApp.openById(spreadsheetId)
+                               .getSheetByName(sheetName);
+
+    // ヘッダー行の定義（code.jsと同じ順序）
+    const headers = [
+      // Basic Info
+      'ID',
+      'Name',
+      'PageName',
+      'ParentFrame',
+      'Characters',
+
+      // Position
+      'AlignmentHorizontal',
+      'AlignmentVertical',
+      'PositionX',
+      'PositionY',
+      'Transform',
+
+      // Layout
+      'Width',
+      'Height',
+
+      // Appearance
+      'Opacity',
+      'CornerRadius',
+
+      // Typography
+      'FontFamily',
+      'FontStyle',
+      'FontSize',
+      'LineHeight',
+      'LetterSpacing',
+      'TextAlignHorizontal',
+      'TextAlignVertical',
+
+      // Fill
+      'FillColor',
+      'FillOpacity'
+    ];
+
+    // ヘッダー行を書き込み
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+    // データを2次元配列に変換（code.jsと同じ順序）
+    const values = data.slice(1).map(item => [
+      // Basic Info
+      item.id || '',
+      item.name || '',
+      item.pageName || '',
+      item.frame1 || '',
+      item.characters || '',
+
+      // Position
+      item.alignmentHorizontal || '',
+      item.alignmentVertical || '',
+      item.positionX || '',
+      item.positionY || '',
+      item.transform || '',
+
+      // Layout
+      item.width || '',
+      item.height || '',
+
+      // Appearance
+      item.opacity || '',
+      item.cornerRadius || '',
+
+      // Typography
+      item.fontFamily || '',
+      item.fontStyle || '',
+      item.fontSize || '',
+      item.lineHeight || '',
+      item.letterSpacing || '',
+      item.textAlignHorizontal || '',
+      item.textAlignVertical || '',
+
+      // Fill
+      item.fillColor || '',
+      item.fillOpacity || ''
+    ]);
+
+    // データを2行目から書き込み
+    if (values.length > 0) {
+      sheet.getRange(2, 1, values.length, headers.length).setValues(values);
     }
 
-    // データ範囲を取得
-    const lastRow = sheet.getLastRow();
-    const lastColumn = sheet.getLastColumn();
-    const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
-
-    // IDの列（3列目）を文字列として扱うように設定
-    const range = sheet.getRange(2, 3, lastRow - 1, 1);
-    range.setNumberFormat('@');  // テキスト形式に設定
-
-    // スプレッドシートのデータをオブジェクトの配列に変換
-    const importData = values
-      .map(row => ({
-        pageName: row[0] || '',
-        frame1: row[1] || '',
-        id: String(row[2]).replace(':', '-'),  // コロンをハイフンに置換
-        name: row[3] || '',
-        characters: row[4] || '',
-        fontSize: row[5] || '',
-        fontFamily: row[6] || '',
-        fontStyle: row[7] || '',
-        textColor: row[8] || '',
-        textOpacity: row[9] || '',
-        textAlignHorizontal: row[10] || '',
-        textAlignVertical: row[11] || '',
-        lineHeight: row[12] || '',
-        letterSpacing: row[13] || '',
-        textCase: row[14] || '',
-        textDecoration: row[15] || ''
-      }))
-      .filter(row => row.id); // IDが存在するデータのみを返す
-
-    // デバッグ用のログ
-    console.log('最初の数件のID:', importData.slice(0, 3).map(row => row.id));
-
-    if (importData.length === 0) {
-      throw new Error('有効なデータが見つかりません（IDが必要です）');
-    }
-
-    // JSONとしてデータを返す
     return ContentService.createTextOutput(JSON.stringify({
       success: true,
-      data: importData
+      message: `${values.length} 件のデータを書き込みました`
     })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {

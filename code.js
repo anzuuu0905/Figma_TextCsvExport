@@ -1,4 +1,4 @@
-figma.showUI(__html__, { width: 300, height: 200 });
+figma.showUI(__html__, { width: 400, height: 500 });
 
 // 全ページのテキストレイヤーを取得
 let allTextNodes = [];
@@ -29,74 +29,129 @@ function rgbToHex(color) {
 // データを抽出して整形
 const extractedData = [
   {
-    pageName: 'ページ名',
-    frame1: 'フレーム1',
+    // Basic Info
     id: 'ID',
-    name: '名前',
-    characters: 'テキスト',
-    fontSize: 'フォントサイズ',
-    fontFamily: 'フォント',
-    fontStyle: 'スタイル',
-    textColor: 'テキストカラー',
-    textOpacity: '不透明度',
-    textAlignHorizontal: '横位置',
-    textAlignVertical: '縦位置',
-    lineHeight: '行高',
-    letterSpacing: '字間',
-    textCase: '大文字/小文字',
-    textDecoration: '装飾'
+    name: 'Name',
+    pageName: 'PageName',
+    frame1: 'ParentFrame',
+    characters: 'Characters',
+
+    // Position
+    alignmentHorizontal: 'AlignmentHorizontal',
+    alignmentVertical: 'AlignmentVertical',
+    positionX: 'PositionX',
+    positionY: 'PositionY',
+    transform: 'Transform',
+
+    // Layout
+    width: 'Width',
+    height: 'Height',
+
+    // Appearance
+    opacity: 'Opacity',
+    cornerRadius: 'CornerRadius',
+
+    // Typography
+    fontFamily: 'FontFamily',
+    fontStyle: 'FontStyle',
+    fontSize: 'FontSize',
+    lineHeight: 'LineHeight',
+    letterSpacing: 'LetterSpacing',
+    textAlignHorizontal: 'TextAlignHorizontal',
+    textAlignVertical: 'TextAlignVertical',
+
+    // Fill
+    fillColor: 'FillColor',
+    fillOpacity: 'FillOpacity'
   },
-  ...allTextNodes.map(node => {
-    // 最上位のフレームを取得
-    let topLevelFrame = '';
-    let parent = node.parent;
-    let pageName = '';
+  ...allTextNodes
+    .filter(node => !node.id.includes(';'))
+    .map(node => {
+      let topLevelFrame = '';
+      let parent = node.parent;
+      let pageName = '';
 
-    while (parent) {
-      if (parent.type === "PAGE") {
-        pageName = parent.name;
-        break;
+      while (parent) {
+        if (parent.type === "PAGE") {
+          pageName = parent.name;
+          break;
+        }
+        if (parent.type === "FRAME" && parent.parent.type === "PAGE") {
+          topLevelFrame = parent.name;
+        }
+        parent = parent.parent;
       }
-      if (parent.type === "FRAME" && parent.parent.type === "PAGE") {
-        topLevelFrame = parent.name;
+
+      // カラー情報の取得
+      let fillColor = '';
+      let fillOpacity = '';
+      if (node.fills && node.fills.length > 0 && node.fills[0].type === 'SOLID') {
+        fillColor = rgbToHex(node.fills[0].color);
+        fillOpacity = node.fills[0].opacity !== undefined ?
+          Math.round(node.fills[0].opacity * 100) + '%' :
+          '100%';
       }
-      parent = parent.parent;
-    }
 
-    // カラー情報の取得
-    let textColor = '';
-    let textOpacity = '';
-    if (node.fills && node.fills.length > 0 && node.fills[0].type === 'SOLID') {
-      textColor = rgbToHex(node.fills[0].color);
-      textOpacity = node.fills[0].opacity !== undefined ?
-        Math.round(node.fills[0].opacity * 100) + '%' :
-        '100%';
-    }
+      // フォント情報の安全な取得
+      const fontName = node.fontName || {};
+      const fontFamily = fontName.family || '';
+      const fontStyle = fontName.style || '';
 
-    return {
-      pageName: safeStringify(pageName),
-      frame1: safeStringify(topLevelFrame),
-      id: safeStringify(node.id),
-      name: safeStringify(node.name),
-      characters: safeStringify(node.characters),
-      fontSize: safeStringify(node.fontSize),
-      fontFamily: safeStringify(node.fontName.family),
-      fontStyle: safeStringify(node.fontName.style),
-      textColor: textColor,
-      textOpacity: textOpacity,
-      textAlignHorizontal: safeStringify(node.textAlignHorizontal),
-      textAlignVertical: safeStringify(node.textAlignVertical),
-      lineHeight: typeof node.lineHeight === 'object' ?
-        safeStringify(node.lineHeight.value) + safeStringify(node.lineHeight.unit) :
-        'AUTO',
-      letterSpacing: typeof node.letterSpacing === 'object' ?
-        safeStringify(node.letterSpacing.value) + safeStringify(node.letterSpacing.unit) :
-        '0%',
-      textCase: safeStringify(node.textCase || 'ORIGINAL'),
-      textDecoration: safeStringify(node.textDecoration || 'NONE')
-    };
-  })
+      try {
+        return {
+          // Basic Info
+          id: node.id || '',
+          name: node.name || '',
+          pageName: pageName,
+          frame1: topLevelFrame,
+          characters: node.characters || '',
+
+          // Position
+          alignmentHorizontal: node.layoutAlign || '',
+          alignmentVertical: node.layoutMode || '',
+          positionX: Math.round(node.x || 0),
+          positionY: Math.round(node.y || 0),
+          transform: Math.round(node.rotation || 0),
+
+          // Layout
+          width: Math.round(node.width || 0),
+          height: Math.round(node.height || 0),
+
+          // Appearance
+          opacity: Math.round((node.opacity || 1) * 100) + '%',
+          cornerRadius: Math.round(node.cornerRadius || 0),
+
+          // Typography
+          fontFamily: fontFamily,
+          fontStyle: fontStyle,
+          fontSize: Math.round(node.fontSize || 0),
+          lineHeight: typeof node.lineHeight === 'object' ?
+            Math.round(node.lineHeight.value) + (node.lineHeight.unit || 'px') :
+            'AUTO',
+          letterSpacing: typeof node.letterSpacing === 'object' ?
+            Math.round(node.letterSpacing.value) + (node.letterSpacing.unit || 'px') :
+            '0%',
+          textAlignHorizontal: node.textAlignHorizontal || '',
+          textAlignVertical: node.textAlignVertical || '',
+
+          // Fill
+          fillColor: fillColor,
+          fillOpacity: fillOpacity
+        };
+      } catch (error) {
+        console.error('Error processing node:', node.id, error);
+        return null;
+      }
+    })
+    .filter(Boolean) // null値を除外
 ];
+
+// フィルタリング結果のログ出力を追加
+console.log('エクスポート統計:', {
+  '全テキストノード数': allTextNodes.length,
+  'エクスポート対象数': extractedData.length - 1,  // ヘッダー行を除く
+  '除外されたノード数': allTextNodes.length - (extractedData.length - 1)
+});
 
 // データをコンソールに出力して確認
 console.log('Extracted Data:', JSON.stringify(extractedData[1], null, 2));
@@ -130,11 +185,29 @@ figma.ui.onmessage = async (msg) => {
             // 現在のフォントを読み込み
             await figma.loadFontAsync(node.fontName);
 
-            // テキストの内容だけを更新
+            // テキストの内容を更新して結果を確認
             if (row.characters !== undefined) {
+              const oldText = node.characters;  // 更新前のテキスト
               node.characters = row.characters;
-              successCount++;
-              console.log(`更新成功: ID ${row.id}, テキスト: ${row.characters}`);
+              const newText = node.characters;  // 更新後のテキスト
+
+              // 実際に更新されたか確認
+              if (newText === row.characters && newText !== oldText) {
+                successCount++;
+                console.log(`更新成功:
+                  ID: ${row.id}
+                  更新前: ${oldText}
+                  更新後: ${newText}
+                `);
+              } else {
+                console.warn(`更新の確認が必要:
+                  ID: ${row.id}
+                  期待値: ${row.characters}
+                  実際の値: ${newText}
+                  変更なし: ${newText === oldText}
+                `);
+                errorCount++;
+              }
             }
 
           } catch (error) {

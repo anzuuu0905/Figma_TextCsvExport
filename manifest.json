@@ -1,6 +1,6 @@
 {
-  "name": "Text Extractor",
-  "id": "your-plugin-id",
+  "name": "Text Import/Export",
+  "id": "1436581678590803608",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -12,7 +12,5 @@
       "https://script.googleusercontent.com"
     ]
   },
-  "editorType": [
-    "figma"
-  ]
+  "editorType": ["figma"]
 }
