@@ -129,7 +129,7 @@
     }
 
     function onSuccess(totalRows) {
-      const message = `成功: 全${totalRows}件のデータを送信しました`;
+      const message = `成功: 全${totalRows - 1}件のデータを送信しました`;
       updateStatus(message);
       parent.postMessage({ pluginMessage: {
         type: 'complete',

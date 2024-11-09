@@ -29,11 +29,26 @@ async function getAllTextNodes() {
       const textNodes = page.findAllWithCriteria({
         types: ['TEXT']
       });
-      allTextNodes = allTextNodes.concat(textNodes);
+
+      // シンボルインスタンス内のテキストを除外
+      const filteredNodes = textNodes.filter(node => {
+        let currentParent = node.parent;
+        while (currentParent) {
+          if (currentParent.type === "INSTANCE") {
+            return false;
+          }
+          currentParent = currentParent.parent;
+        }
+        return true;
+      });
+
+      allTextNodes = allTextNodes.concat(filteredNodes);
     } catch (error) {
       console.error(`Error accessing page: ${error}`);
     }
   }
+
+  console.log(`全テキストノード数: ${allTextNodes.length}（シンボルインスタンス内のテキストは除外済み）`);
   return allTextNodes;
 }
 
@@ -195,9 +210,6 @@ figma.ui.onmessage = async (msg) => {
 
         console.log('インポートデータ:', msg.data);
 
-        // すべてのページを読み込む
-        await figma.loadAllPagesAsync();
-
         for (const row of msg.data) {
           try {
             if (!row.id) continue;
@@ -206,6 +218,22 @@ figma.ui.onmessage = async (msg) => {
             const node = await figma.getNodeByIdAsync(row.id);
             if (!node || node.type !== "TEXT") {
               throw new Error(`ID: ${row.id} のテキストノードが見つかりません`);
+            }
+
+            // シンボルインスタンス内のテキストをチェック
+            let currentParent = node.parent;
+            let isWithinInstance = false;
+            while (currentParent) {
+              if (currentParent.type === "INSTANCE") {
+                isWithinInstance = true;
+                break;
+              }
+              currentParent = currentParent.parent;
+            }
+
+            if (isWithinInstance) {
+              console.log(`スキップ: ID ${row.id} はシンボルインスタンス内のテキスト`);
+              continue;
             }
 
             // フォントの読み込み
