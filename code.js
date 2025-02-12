@@ -201,78 +201,73 @@ async function getAllTextNodes() {
 
 // UIからのメッセージを受け取る
 figma.ui.onmessage = async (msg) => {
-  switch (msg.type) {
-    case 'import-data':
-      try {
-        let successCount = 0;
-        let errorCount = 0;
-        const errors = [];
+  if (msg.type === 'import-data') {
+    try {
+      const headers = msg.data[0];
+      const rows = msg.data.slice(1);
 
-        console.log('インポートデータ:', msg.data);
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
 
-        for (const row of msg.data) {
-          try {
-            if (!row.id) continue;
+      // IDとテキストのインデックスを取得
+      const idIndex = headers.indexOf('ID');
+      const textIndex = headers.indexOf('Characters');
 
-            // ノードの取得を非同期で行う
-            const node = await figma.getNodeByIdAsync(row.id);
-            if (!node || node.type !== "TEXT") {
-              throw new Error(`ID: ${row.id} のテキストノードが見つかりません`);
-            }
+      for (const row of rows) {
+        try {
+          const id = row[idIndex];
+          const newText = row[textIndex];
 
-            // シンボルインスタンス内のテキストをチェック
-            let currentParent = node.parent;
-            let isWithinInstance = false;
-            while (currentParent) {
-              if (currentParent.type === "INSTANCE") {
-                isWithinInstance = true;
-                break;
-              }
-              currentParent = currentParent.parent;
-            }
+          if (!id || !newText) continue;
 
-            if (isWithinInstance) {
-              console.log(`スキップ: ID ${row.id} はシンボルインスタンス内のテキスト`);
-              continue;
-            }
-
-            // フォントの読み込み
-            await figma.loadFontAsync(node.fontName);
-
-            // テキストの更新
-            if (row.characters !== undefined) {
-              node.characters = row.characters;
-              successCount++;
-              console.log(`更新成功: ID ${row.id}`);
-            }
-
-          } catch (error) {
-            console.error(`Error updating node:`, error);
-            errorCount++;
-            errors.push(`ID ${row.id}: ${error.message}`);
+          // ノードの取得
+          const node = await figma.getNodeByIdAsync(id);
+          if (!node || node.type !== "TEXT") {
+            throw new Error(`ID: ${id} のテキストノードが見つかりません`);
           }
+
+          // シンボルインスタンス内のテキストをチェック
+          let currentParent = node.parent;
+          while (currentParent) {
+            if (currentParent.type === "INSTANCE") {
+              throw new Error(`ID: ${id} はシンボルインスタンス内のテキストです`);
+            }
+            currentParent = currentParent.parent;
+          }
+
+          // フォントの読み込み
+          await figma.loadFontAsync(node.fontName);
+
+          // テキストの更新
+          node.characters = newText;
+          successCount++;
+
+        } catch (error) {
+          errorCount++;
+          errors.push(`${error.message}`);
         }
-
-        // 結果の通知
-        if (errorCount > 0) {
-          figma.notify(`⚠️ ${successCount}件成功、${errorCount}件失敗\n${errors[0]}`, { timeout: 5000 });
-        } else {
-          figma.notify(`✅ ${successCount}件のテキストを更新しました`);
-        }
-
-        figma.ui.postMessage({
-          type: 'import-complete',
-          count: successCount
-        });
-
-      } catch (error) {
-        console.error('Import error:', error);
-        figma.notify('❌ インポートエラー: ' + error.message, { error: true });
-        figma.ui.postMessage({
-          type: 'import-error',
-          message: error.message
-        });
       }
-      break;
+
+      // 結果の通知
+      if (errorCount > 0) {
+        figma.notify(`⚠️ ${successCount}件成功、${errorCount}件失敗\n${errors[0]}`,
+          { timeout: 5000 });
+      } else {
+        figma.notify(`✅ ${successCount}件のテキストを更新しました`);
+      }
+
+      figma.ui.postMessage({
+        type: 'import-complete',
+        count: successCount
+      });
+
+    } catch (error) {
+      console.error('Import error:', error);
+      figma.ui.postMessage({
+        type: 'import-error',
+        message: error.message
+      });
+    }
   }
 };
