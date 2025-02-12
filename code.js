@@ -125,7 +125,6 @@ function getTextStyleInfo(node) {
   // 行の高さ
   if (node.lineHeight && typeof node.lineHeight !== 'symbol') {
     if (typeof node.lineHeight === 'object') {
-      // 値が存在する場合のみ単位を付加
       if (node.lineHeight.value !== undefined && !isNaN(node.lineHeight.value)) {
         lineHeight = node.lineHeight.value + (node.lineHeight.unit || 'px');
       } else {
@@ -135,7 +134,6 @@ function getTextStyleInfo(node) {
       lineHeight = 'AUTO';
     }
   }
-
 
   // 文字間隔
   if (node.letterSpacing && typeof node.letterSpacing !== 'symbol') {
@@ -180,90 +178,111 @@ function getTextStyleInfo(node) {
   };
 }
 
-// 選択変更時のイベントリスナーを追加
+// データを抽出して整形する関数
+async function extractTextData(textNodes) {
+  if (textNodes.length === 0) {
+    return [];
+  }
+
+  const extractedData = [
+    {
+      // ヘッダー情報
+      id: 'ID',
+      name: 'Name',
+      pageName: 'PageName',
+      frame1: 'ParentFrame',
+      characters: 'Characters',
+      fontFamily: 'FontFamily',
+      fontStyle: 'FontStyle',
+      fontSize: 'FontSize',
+      lineHeight: 'LineHeight',
+      letterSpacing: 'LetterSpacing',
+      textAlignHorizontal: 'TextAlignHorizontal',
+      textAlignVertical: 'TextAlignVertical',
+      fillColor: 'FillColor',
+      fillOpacity: 'FillOpacity',
+      positionX: 'PositionX',
+      positionY: 'PositionY'
+    },
+    ...textNodes
+      .filter(node => !node.id.includes(';'))
+      .map(node => {
+        let topLevelFrame = '';
+        let parent = node.parent;
+        let pageName = '';
+
+        while (parent) {
+          if (parent.type === "PAGE") {
+            pageName = parent.name;
+            break;
+          }
+          if (parent.type === "FRAME" && parent.parent.type === "PAGE") {
+            topLevelFrame = parent.name;
+          }
+          parent = parent.parent;
+        }
+
+        // スタイル情報を取得
+        const styleInfo = getTextStyleInfo(node);
+
+        return {
+          id: node.id || '',
+          name: node.name || '',
+          pageName: pageName,
+          frame1: topLevelFrame,
+          characters: node.characters || '',
+          fontSize: styleInfo.fontSize,
+          fontFamily: styleInfo.fontFamily,
+          fontStyle: styleInfo.fontStyle,
+          lineHeight: styleInfo.lineHeight,
+          letterSpacing: styleInfo.letterSpacing,
+          textAlignHorizontal: styleInfo.textAlignHorizontal,
+          textAlignVertical: styleInfo.textAlignVertical,
+          fillColor: styleInfo.fillColor,
+          fillOpacity: styleInfo.fillOpacity,
+          positionX: styleInfo.positionX,
+          positionY: styleInfo.positionY
+        };
+      })
+      .filter(Boolean)
+  ];
+
+  return extractedData;
+}
+
+// テキストデータを処理して送信する関数
+async function processAndSendTextData(textNodes, source = '') {
+  if (textNodes.length === 0) {
+    figma.notify('テキストレイヤーが見つかりませんでした');
+    figma.ui.postMessage({
+      type: 'send-text-data',
+      data: []
+    });
+    return;
+  }
+
+  const extractedData = await extractTextData(textNodes);
+
+  // フィルタリング結果のログ出力
+  const isSelected = figma.currentPage.selection.length > 0;
+  console.log(`${source} エクスポート統計:`, {
+    [isSelected ? '選択フレーム内のテキストノード数' : '全テキストノード数']: textNodes.length,
+    'エクスポート対象数': extractedData.length - 1,
+    '除外されたノード数': textNodes.length - (extractedData.length - 1)
+  });
+
+  // UIにデータを送信
+  figma.ui.postMessage({
+    type: 'send-text-data',
+    data: extractedData
+  });
+}
+
+// 選択変更時のイベントリスナー
 figma.on('selectionchange', async () => {
   try {
     const textNodes = await getTextNodes();
-
-    if (textNodes.length === 0) {
-      figma.notify('テキストレイヤーが見つかりませんでした');
-      figma.ui.postMessage({
-        type: 'send-text-data',
-        data: []
-      });
-      return;
-    }
-
-    // データを抽出して整形
-    const extractedData = [
-      {
-        // ヘッダー情報
-        id: 'ID',
-        name: 'Name',
-        pageName: 'PageName',
-        frame1: 'ParentFrame',
-        characters: 'Characters',
-        fontFamily: 'FontFamily',
-        fontStyle: 'FontStyle',
-        fontSize: 'FontSize',
-        lineHeight: 'LineHeight',
-        letterSpacing: 'LetterSpacing',
-        textAlignHorizontal: 'TextAlignHorizontal',
-        textAlignVertical: 'TextAlignVertical',
-        fillColor: 'FillColor',
-        fillOpacity: 'FillOpacity',
-        positionX: 'PositionX',
-        positionY: 'PositionY'
-      },
-      ...textNodes
-        .filter(node => !node.id.includes(';'))
-        .map(node => {
-          let topLevelFrame = '';
-          let parent = node.parent;
-          let pageName = '';
-
-          while (parent) {
-            if (parent.type === "PAGE") {
-              pageName = parent.name;
-              break;
-            }
-            if (parent.type === "FRAME" && parent.parent.type === "PAGE") {
-              topLevelFrame = parent.name;
-            }
-            parent = parent.parent;
-          }
-
-          // スタイル情報を取得
-          const styleInfo = getTextStyleInfo(node);
-
-          return {
-            id: node.id || '',
-            name: node.name || '',
-            pageName: pageName,
-            frame1: topLevelFrame,
-            characters: node.characters || '',
-            fontSize: styleInfo.fontSize,
-            fontFamily: styleInfo.fontFamily,
-            fontStyle: styleInfo.fontStyle,
-            lineHeight: styleInfo.lineHeight,
-            letterSpacing: styleInfo.letterSpacing,
-            textAlignHorizontal: styleInfo.textAlignHorizontal,
-            textAlignVertical: styleInfo.textAlignVertical,
-            fillColor: styleInfo.fillColor,
-            fillOpacity: styleInfo.fillOpacity,
-            positionX: styleInfo.positionX,
-            positionY: styleInfo.positionY
-          };
-        })
-        .filter(Boolean)
-    ];
-
-    // UIにデータを送信
-    figma.ui.postMessage({
-      type: 'send-text-data',
-      data: extractedData
-    });
-
+    await processAndSendTextData(textNodes, 'Selection Change');
   } catch (error) {
     console.error('Error in selection change:', error);
     figma.notify('エラーが発生しました: ' + error.message);
@@ -274,94 +293,7 @@ figma.on('selectionchange', async () => {
 (async () => {
   try {
     const textNodes = await getTextNodes();
-
-    if (textNodes.length === 0) {
-      figma.notify('テキストレイヤーが見つかりませんでした');
-      return;
-    }
-
-    // データを抽出して整形
-    const extractedData = [
-      {
-        // Basic Info
-        id: 'ID',
-        name: 'Name',
-        pageName: 'PageName',
-        frame1: 'ParentFrame',
-        characters: 'Characters',
-
-        // Typography
-        fontFamily: 'FontFamily',
-        fontStyle: 'FontStyle',
-        fontSize: 'FontSize',
-        lineHeight: 'LineHeight',
-        letterSpacing: 'LetterSpacing',
-        textAlignHorizontal: 'TextAlignHorizontal',
-        textAlignVertical: 'TextAlignVertical',
-
-        // Fill
-        fillColor: 'FillColor',
-        fillOpacity: 'FillOpacity',
-        positionX: 'PositionX',
-        positionY: 'PositionY'
-      },
-      ...textNodes
-        .filter(node => !node.id.includes(';'))
-        .map(node => {
-          let topLevelFrame = '';
-          let parent = node.parent;
-          let pageName = '';
-
-          while (parent) {
-            if (parent.type === "PAGE") {
-              pageName = parent.name;
-              break;
-            }
-            if (parent.type === "FRAME" && parent.parent.type === "PAGE") {
-              topLevelFrame = parent.name;
-            }
-            parent = parent.parent;
-          }
-
-          // スタイル情報を取得
-          const styleInfo = getTextStyleInfo(node);
-
-          return {
-            id: node.id || '',
-            name: node.name || '',
-            pageName: pageName,
-            frame1: topLevelFrame,
-            characters: node.characters || '',
-            fontSize: styleInfo.fontSize,
-            fontFamily: styleInfo.fontFamily,
-            fontStyle: styleInfo.fontStyle,
-            lineHeight: styleInfo.lineHeight,
-            letterSpacing: styleInfo.letterSpacing,
-            textAlignHorizontal: styleInfo.textAlignHorizontal,
-            textAlignVertical: styleInfo.textAlignVertical,
-            fillColor: styleInfo.fillColor,
-            fillOpacity: styleInfo.fillOpacity,
-            positionX: styleInfo.positionX,
-            positionY: styleInfo.positionY
-          };
-        })
-        .filter(Boolean)
-    ];
-
-    // フィルタリング結果のログ出力
-    const isSelected = figma.currentPage.selection.length > 0;
-    console.log('エクスポート統計:', {
-      [isSelected ? '選択フレーム内のテキストノード数' : '全テキストノード数']: textNodes.length,
-      'エクスポート対象数': extractedData.length - 1,
-      '除外されたノード数': textNodes.length - (extractedData.length - 1)
-    });
-
-    // UIにデータを送信
-    figma.ui.postMessage({
-      type: 'send-text-data',
-      data: extractedData
-    });
-
+    await processAndSendTextData(textNodes, 'Initial Load');
   } catch (error) {
     console.error('Error in main process:', error);
     figma.notify('エラーが発生しました: ' + error.message, { error: true });
@@ -379,7 +311,6 @@ figma.ui.onmessage = async (msg) => {
       let errorCount = 0;
       const errors = [];
 
-      // IDとテキストのインデックスを取得
       const idIndex = headers.indexOf('ID');
       const textIndex = headers.indexOf('Characters');
 
@@ -390,13 +321,11 @@ figma.ui.onmessage = async (msg) => {
 
           if (!id || !newText) continue;
 
-          // ノードの取得
           const node = await figma.getNodeByIdAsync(id);
           if (!node || node.type !== "TEXT") {
             throw new Error(`ID: ${id} のテキストノードが見つかりません`);
           }
 
-          // シンボルインスタンス内のテキストをチェック
           let currentParent = node.parent;
           while (currentParent) {
             if (currentParent.type === "INSTANCE") {
@@ -405,10 +334,7 @@ figma.ui.onmessage = async (msg) => {
             currentParent = currentParent.parent;
           }
 
-          // フォントの読み込み
           await figma.loadFontAsync(node.fontName);
-
-          // テキストの更新
           node.characters = newText;
           successCount++;
 
@@ -418,7 +344,6 @@ figma.ui.onmessage = async (msg) => {
         }
       }
 
-      // 結果の通知
       if (errorCount > 0) {
         figma.notify(`⚠️ ${successCount}件成功、${errorCount}件失敗\n${errors[0]}`,
           { timeout: 5000 });
@@ -439,87 +364,10 @@ figma.ui.onmessage = async (msg) => {
       });
     }
   } else if (msg.type === 'clear-selection') {
-    // 選択を解除
     figma.currentPage.selection = [];
-
     try {
-      // 全テキストノードを取得
       const textNodes = await getAllTextNodes();
-
-      if (textNodes.length === 0) {
-        figma.notify('テキストレイヤーが見つかりませんでした');
-        return;
-      }
-
-      // データを抽出して整形
-      const extractedData = [
-        {
-          id: 'ID',
-          name: 'Name',
-          pageName: 'PageName',
-          frame1: 'ParentFrame',
-          characters: 'Characters',
-          fontFamily: 'FontFamily',
-          fontStyle: 'FontStyle',
-          fontSize: 'FontSize',
-          lineHeight: 'LineHeight',
-          letterSpacing: 'LetterSpacing',
-          textAlignHorizontal: 'TextAlignHorizontal',
-          textAlignVertical: 'TextAlignVertical',
-          fillColor: 'FillColor',
-          fillOpacity: 'FillOpacity',
-          positionX: styleInfo.positionX,
-          positionY: styleInfo.positionY
-        },
-        ...textNodes
-          .filter(node => !node.id.includes(';'))
-          .map(node => {
-            let topLevelFrame = '';
-            let parent = node.parent;
-            let pageName = '';
-
-            while (parent) {
-              if (parent.type === "PAGE") {
-                pageName = parent.name;
-                break;
-              }
-              if (parent.type === "FRAME" && parent.parent.type === "PAGE") {
-                topLevelFrame = parent.name;
-              }
-              parent = parent.parent;
-            }
-
-            // スタイル情報を取得
-            const styleInfo = getTextStyleInfo(node);
-
-            return {
-              id: node.id || '',
-              name: node.name || '',
-              pageName: pageName,
-              frame1: topLevelFrame,
-              characters: node.characters || '',
-              fontFamily: styleInfo.fontFamily,
-              fontStyle: styleInfo.fontStyle,
-              fontSize: styleInfo.fontSize,
-              lineHeight: styleInfo.lineHeight,
-              letterSpacing: styleInfo.letterSpacing,
-              textAlignHorizontal: styleInfo.textAlignHorizontal,
-              textAlignVertical: styleInfo.textAlignVertical,
-              fillColor: styleInfo.fillColor,
-              fillOpacity: styleInfo.fillOpacity,
-              positionX: styleInfo.positionX,
-              positionY: styleInfo.positionY
-            };
-          })
-          .filter(Boolean)
-      ];
-
-      // UIにデータを送信
-      figma.ui.postMessage({
-        type: 'send-text-data',
-        data: extractedData
-      });
-
+      await processAndSendTextData(textNodes, 'Clear Selection');
     } catch (error) {
       console.error('Error in clear selection:', error);
       figma.notify('エラーが発生しました: ' + error.message);
