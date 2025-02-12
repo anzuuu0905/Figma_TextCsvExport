@@ -28,7 +28,6 @@
 <body>
   <button onclick="exportToCSV()">CSVエクスポート</button>
   <div id="status"></div>
-
   <script>
     let extractedData = [];
 
@@ -37,35 +36,26 @@
     }
 
     function downloadCSV(data) {
-      const headers = [
-        'ID', 'Name', 'PageName', 'FrameName', 'Characters',
-        'FontSize', 'FontFamily', 'FontStyle',
-        'LineHeight', 'LetterSpacing',
-        'TextAlignHorizontal', 'TextAlignVertical',
-        'FillColor', 'FillOpacity'
-      ];
+      if (data.length === 0) return;
 
-      const rows = [headers];
-
-      data.forEach(item => {
-        const row = [
-          item.id,
-          item.name,
-          item.pageName,
-          item.frame1,
-          item.characters,
-          item.fontSize,
-          item.fontFamily,
-          item.fontStyle,
-          item.lineHeight,
-          item.letterSpacing,
-          item.textAlignHorizontal,
-          item.textAlignVertical,
-          item.fillColor,
-          item.fillOpacity
-        ];
-        rows.push(row);
-      });
+      // 最初の行をヘッダーとして使用
+      const firstRow = data[0];
+      const rows = data.map(item => [
+        item.id,
+        item.name,
+        item.pageName,
+        item.frame1,
+        item.characters,
+        item.fontSize,
+        item.fontFamily,
+        item.fontStyle,
+        item.lineHeight,
+        item.letterSpacing,
+        item.textAlignHorizontal,
+        item.textAlignVertical,
+        item.fillColor,
+        item.fillOpacity
+      ]);
 
       const csvContent = rows.map(row =>
         row.map(cell => {
@@ -77,7 +67,6 @@
       const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
       const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-
       const link = document.createElement('a');
       link.href = url;
       link.download = `figma-text-export-${new Date().toISOString().slice(0,10)}.csv`;
@@ -95,7 +84,7 @@
 
       try {
         downloadCSV(extractedData);
-        updateStatus(`${extractedData.length}件のデータをエクスポートしました`);
+        updateStatus(`${extractedData.length - 1}件のデータをエクスポートしました`);
       } catch (error) {
         updateStatus('エラー: ' + error.message);
         console.error('エクスポートエラー:', error);
