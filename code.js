@@ -1,3 +1,4 @@
+// UIの初期化
 figma.showUI(__html__, { width: 400, height: 500 });
 
 // シンボルを安全に文字列に変換する関数
@@ -17,7 +18,21 @@ function rgbToHex(color) {
   return `#${r}${g}${b}`;
 }
 
-// 全ページのテキストレイヤーを取得する非同期関数
+// テキストレイヤーを取得する非同期関数
+async function getTextNodes() {
+  // 現在の選択を取得
+  const selection = figma.currentPage.selection;
+
+  // 選択がない場合は全フレームのテキストを取得
+  if (selection.length === 0) {
+    return await getAllTextNodes();
+  }
+
+  // 選択がある場合は選択されたフレーム内のテキストを取得
+  return await getSelectedFrameTextNodes(selection);
+}
+
+// 全フレームのテキストレイヤーを取得する非同期関数
 async function getAllTextNodes() {
   let allTextNodes = [];
 
@@ -52,10 +67,70 @@ async function getAllTextNodes() {
   return allTextNodes;
 }
 
+// 選択されたフレーム内のテキストレイヤーを取得する非同期関数
+async function getSelectedFrameTextNodes(selection) {
+  let textNodes = [];
+
+  // 選択された各要素に対して処理
+  for (const selected of selection) {
+    // FRAMEまたはGROUPを処理対象とする
+    if (selected.type === "FRAME" || selected.type === "GROUP") {
+      console.log(`Processing ${selected.type}: ${selected.name}`);
+
+      try {
+        // 選択したフレーム/グループ内のテキストを再帰的に検索
+        function findTextNodesInNode(node) {
+          let nodes = [];
+
+          // テキストノードの場合
+          if (node.type === "TEXT") {
+            // シンボルインスタンス内のチェック
+            let currentParent = node.parent;
+            let isInsideInstance = false;
+            while (currentParent) {
+              if (currentParent.type === "INSTANCE") {
+                isInsideInstance = true;
+                break;
+              }
+              currentParent = currentParent.parent;
+            }
+            if (!isInsideInstance) {
+              nodes.push(node);
+            }
+          }
+
+          // 子ノードがある場合は再帰的に検索
+          if ("children" in node) {
+            for (const child of node.children) {
+              nodes = nodes.concat(findTextNodesInNode(child));
+            }
+          }
+
+          return nodes;
+        }
+
+        const foundNodes = findTextNodesInNode(selected);
+        console.log(`Found ${foundNodes.length} text nodes in ${selected.name}`);
+        textNodes = textNodes.concat(foundNodes);
+      } catch (error) {
+        console.error(`Error processing ${selected.type} ${selected.name}:`, error);
+      }
+    }
+  }
+
+  console.log(`選択されたフレーム内のテキストノード数: ${textNodes.length}（シンボルインスタンス内のテキストは除外済み）`);
+  return textNodes;
+}
+
 // メイン処理を非同期関数で包む
 (async () => {
   try {
-    const allTextNodes = await getAllTextNodes();
+    const textNodes = await getTextNodes();
+
+    if (textNodes.length === 0) {
+      figma.notify('テキストレイヤーが見つかりませんでした');
+      return;
+    }
 
     // データを抽出して整形
     const extractedData = [
@@ -66,21 +141,6 @@ async function getAllTextNodes() {
         pageName: 'PageName',
         frame1: 'ParentFrame',
         characters: 'Characters',
-
-        // Position
-        alignmentHorizontal: 'AlignmentHorizontal',
-        alignmentVertical: 'AlignmentVertical',
-        positionX: 'PositionX',
-        positionY: 'PositionY',
-        transform: 'Transform',
-
-        // Layout
-        width: 'Width',
-        height: 'Height',
-
-        // Appearance
-        opacity: 'Opacity',
-        cornerRadius: 'CornerRadius',
 
         // Typography
         fontFamily: 'FontFamily',
@@ -95,7 +155,7 @@ async function getAllTextNodes() {
         fillColor: 'FillColor',
         fillOpacity: 'FillOpacity'
       },
-      ...allTextNodes
+      ...textNodes
         .filter(node => !node.id.includes(';'))
         .map(node => {
           let topLevelFrame = '';
@@ -137,21 +197,6 @@ async function getAllTextNodes() {
               frame1: topLevelFrame,
               characters: node.characters || '',
 
-              // Position
-              alignmentHorizontal: node.layoutAlign || '',
-              alignmentVertical: node.layoutMode || '',
-              positionX: Math.round(node.x || 0),
-              positionY: Math.round(node.y || 0),
-              transform: Math.round(node.rotation || 0),
-
-              // Layout
-              width: Math.round(node.width || 0),
-              height: Math.round(node.height || 0),
-
-              // Appearance
-              opacity: Math.round((node.opacity || 1) * 100) + '%',
-              cornerRadius: Math.round(node.cornerRadius || 0),
-
               // Typography
               fontFamily: fontFamily,
               fontStyle: fontStyle,
@@ -174,18 +219,16 @@ async function getAllTextNodes() {
             return null;
           }
         })
-        .filter(Boolean) // null値を除外
+        .filter(Boolean)
     ];
 
     // フィルタリング結果のログ出力
+    const isSelected = figma.currentPage.selection.length > 0;
     console.log('エクスポート統計:', {
-      '全テキストノード数': allTextNodes.length,
+      [isSelected ? '選択フレーム内のテキストノード数' : '全テキストノード数']: textNodes.length,
       'エクスポート対象数': extractedData.length - 1,
-      '除外されたノード数': allTextNodes.length - (extractedData.length - 1)
+      '除外されたノード数': textNodes.length - (extractedData.length - 1)
     });
-
-    // データをコンソールに出力して確認
-    console.log('Extracted Data:', JSON.stringify(extractedData[1], null, 2));
 
     // UIにデータを送信
     figma.ui.postMessage({
