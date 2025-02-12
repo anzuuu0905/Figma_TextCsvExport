@@ -9,11 +9,6 @@
       padding: 20px;
       margin: 0;
     }
-    .button-group {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
     button {
       width: 100%;
       padding: 8px;
@@ -31,10 +26,7 @@
   </style>
 </head>
 <body>
-  <div class="button-group">
-    <button onclick="clearSelection()">選択解除</button>
-    <button onclick="exportToCSV()">CSVエクスポート</button>
-  </div>
+  <button onclick="exportToCSV()">CSVエクスポート</button>
   <div id="status"></div>
 
   <script>
@@ -42,11 +34,6 @@
 
     function updateStatus(message) {
       document.getElementById('status').textContent = message;
-    }
-
-    function clearSelection() {
-      parent.postMessage({ pluginMessage: { type: 'clear-selection' } }, '*');
-      updateStatus('選択を解除しました');
     }
 
     function downloadCSV(data) {
