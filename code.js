@@ -108,6 +108,8 @@ function getTextStyleInfo(node) {
   let textAlignVertical = 'Mixed';
   let fillColor = 'Mixed';
   let fillOpacity = 'Mixed';
+  let positionX = Math.round(node.x * 100) / 100;
+  let positionY = Math.round(node.y * 100) / 100;
 
   // フォントサイズ
   if (typeof node.fontSize !== 'symbol') {
@@ -172,7 +174,9 @@ function getTextStyleInfo(node) {
     textAlignHorizontal,
     textAlignVertical,
     fillColor,
-    fillOpacity
+    fillOpacity,
+    positionX,
+    positionY
   };
 }
 
@@ -207,7 +211,9 @@ figma.on('selectionchange', async () => {
         textAlignHorizontal: 'TextAlignHorizontal',
         textAlignVertical: 'TextAlignVertical',
         fillColor: 'FillColor',
-        fillOpacity: 'FillOpacity'
+        fillOpacity: 'FillOpacity',
+        positionX: 'PositionX',
+        positionY: 'PositionY'
       },
       ...textNodes
         .filter(node => !node.id.includes(';'))
@@ -244,7 +250,9 @@ figma.on('selectionchange', async () => {
             textAlignHorizontal: styleInfo.textAlignHorizontal,
             textAlignVertical: styleInfo.textAlignVertical,
             fillColor: styleInfo.fillColor,
-            fillOpacity: styleInfo.fillOpacity
+            fillOpacity: styleInfo.fillOpacity,
+            positionX: styleInfo.positionX,
+            positionY: styleInfo.positionY
           };
         })
         .filter(Boolean)
@@ -293,7 +301,9 @@ figma.on('selectionchange', async () => {
 
         // Fill
         fillColor: 'FillColor',
-        fillOpacity: 'FillOpacity'
+        fillOpacity: 'FillOpacity',
+        positionX: 'PositionX',
+        positionY: 'PositionY'
       },
       ...textNodes
         .filter(node => !node.id.includes(';'))
@@ -330,7 +340,9 @@ figma.on('selectionchange', async () => {
             textAlignHorizontal: styleInfo.textAlignHorizontal,
             textAlignVertical: styleInfo.textAlignVertical,
             fillColor: styleInfo.fillColor,
-            fillOpacity: styleInfo.fillOpacity
+            fillOpacity: styleInfo.fillOpacity,
+            positionX: styleInfo.positionX,
+            positionY: styleInfo.positionY
           };
         })
         .filter(Boolean)
@@ -455,7 +467,9 @@ figma.ui.onmessage = async (msg) => {
           textAlignHorizontal: 'TextAlignHorizontal',
           textAlignVertical: 'TextAlignVertical',
           fillColor: 'FillColor',
-          fillOpacity: 'FillOpacity'
+          fillOpacity: 'FillOpacity',
+          positionX: styleInfo.positionX,
+          positionY: styleInfo.positionY
         },
         ...textNodes
           .filter(node => !node.id.includes(';'))
@@ -492,7 +506,9 @@ figma.ui.onmessage = async (msg) => {
               textAlignHorizontal: styleInfo.textAlignHorizontal,
               textAlignVertical: styleInfo.textAlignVertical,
               fillColor: styleInfo.fillColor,
-              fillOpacity: styleInfo.fillOpacity
+              fillOpacity: styleInfo.fillOpacity,
+              positionX: styleInfo.positionX,
+              positionY: styleInfo.positionY
             };
           })
           .filter(Boolean)
