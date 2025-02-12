@@ -97,6 +97,85 @@ async function getSelectedFrameTextNodes(selection) {
   return textNodes;
 }
 
+// テキストノードのスタイル情報を安全に取得する関数
+function getTextStyleInfo(node) {
+  let fontSize = 'Mixed';
+  let fontFamily = 'Mixed';
+  let fontStyle = 'Mixed';
+  let lineHeight = 'Mixed';
+  let letterSpacing = 'Mixed';
+  let textAlignHorizontal = 'Mixed';
+  let textAlignVertical = 'Mixed';
+  let fillColor = 'Mixed';
+  let fillOpacity = 'Mixed';
+
+  // フォントサイズ
+  if (typeof node.fontSize !== 'symbol') {
+    fontSize = node.fontSize || 0;
+  }
+
+  // フォントファミリーとスタイル
+  if (node.fontName && typeof node.fontName !== 'symbol') {
+    fontFamily = node.fontName.family || '';
+    fontStyle = node.fontName.style || '';
+  }
+
+  // 行の高さ
+  if (node.lineHeight && typeof node.lineHeight !== 'symbol') {
+    if (typeof node.lineHeight === 'object') {
+      // 値が存在する場合のみ単位を付加
+      if (node.lineHeight.value !== undefined && !isNaN(node.lineHeight.value)) {
+        lineHeight = node.lineHeight.value + (node.lineHeight.unit || 'px');
+      } else {
+        lineHeight = 'AUTO';
+      }
+    } else {
+      lineHeight = 'AUTO';
+    }
+  }
+
+
+  // 文字間隔
+  if (node.letterSpacing && typeof node.letterSpacing !== 'symbol') {
+    if (typeof node.letterSpacing === 'object') {
+      letterSpacing = Math.round(node.letterSpacing.value) + (node.letterSpacing.unit || 'px');
+    } else {
+      letterSpacing = '0%';
+    }
+  }
+
+  // テキストの配置
+  if (typeof node.textAlignHorizontal !== 'symbol') {
+    textAlignHorizontal = node.textAlignHorizontal || '';
+  }
+  if (typeof node.textAlignVertical !== 'symbol') {
+    textAlignVertical = node.textAlignVertical || '';
+  }
+
+  // カラー情報
+  if (node.fills &&
+      node.fills.length > 0 &&
+      typeof node.fills !== 'symbol' &&
+      node.fills[0].type === 'SOLID') {
+    fillColor = rgbToHex(node.fills[0].color);
+    fillOpacity = node.fills[0].opacity !== undefined ?
+      Math.round(node.fills[0].opacity * 100) + '%' :
+      '100%';
+  }
+
+  return {
+    fontSize,
+    fontFamily,
+    fontStyle,
+    lineHeight,
+    letterSpacing,
+    textAlignHorizontal,
+    textAlignVertical,
+    fillColor,
+    fillOpacity
+  };
+}
+
 // 選択変更時のイベントリスナーを追加
 figma.on('selectionchange', async () => {
   try {
@@ -148,51 +227,25 @@ figma.on('selectionchange', async () => {
             parent = parent.parent;
           }
 
-          // カラー情報の取得
-          let fillColor = '';
-          let fillOpacity = '';
-          if (node.fills && node.fills.length > 0 && node.fills[0].type === 'SOLID') {
-            fillColor = rgbToHex(node.fills[0].color);
-            fillOpacity = node.fills[0].opacity !== undefined ?
-              Math.round(node.fills[0].opacity * 100) + '%' :
-              '100%';
-          }
+          // スタイル情報を取得
+          const styleInfo = getTextStyleInfo(node);
 
-          // フォント情報の安全な取得
-          const fontName = node.fontName || {};
-          const fontFamily = fontName.family || '';
-          const fontStyle = fontName.style || '';
-
-          try {
-            return {
-              // Basic Info
-              id: node.id || '',
-              name: node.name || '',
-              pageName: pageName,
-              frame1: topLevelFrame,
-              characters: node.characters || '',
-
-              // Typography
-              fontFamily: fontFamily,
-              fontStyle: fontStyle,
-              fontSize: Math.round(node.fontSize || 0),
-              lineHeight: typeof node.lineHeight === 'object' ?
-                Math.round(node.lineHeight.value) + (node.lineHeight.unit || 'px') :
-                'AUTO',
-              letterSpacing: typeof node.letterSpacing === 'object' ?
-                Math.round(node.letterSpacing.value) + (node.letterSpacing.unit || 'px') :
-                '0%',
-              textAlignHorizontal: node.textAlignHorizontal || '',
-              textAlignVertical: node.textAlignVertical || '',
-
-              // Fill
-              fillColor: fillColor,
-              fillOpacity: fillOpacity
-            };
-          } catch (error) {
-            console.error('Error processing node:', node.id, error);
-            return null;
-          }
+          return {
+            id: node.id || '',
+            name: node.name || '',
+            pageName: pageName,
+            frame1: topLevelFrame,
+            characters: node.characters || '',
+            fontSize: styleInfo.fontSize,
+            fontFamily: styleInfo.fontFamily,
+            fontStyle: styleInfo.fontStyle,
+            lineHeight: styleInfo.lineHeight,
+            letterSpacing: styleInfo.letterSpacing,
+            textAlignHorizontal: styleInfo.textAlignHorizontal,
+            textAlignVertical: styleInfo.textAlignVertical,
+            fillColor: styleInfo.fillColor,
+            fillOpacity: styleInfo.fillOpacity
+          };
         })
         .filter(Boolean)
     ];
@@ -260,51 +313,25 @@ figma.on('selectionchange', async () => {
             parent = parent.parent;
           }
 
-          // カラー情報の取得
-          let fillColor = '';
-          let fillOpacity = '';
-          if (node.fills && node.fills.length > 0 && node.fills[0].type === 'SOLID') {
-            fillColor = rgbToHex(node.fills[0].color);
-            fillOpacity = node.fills[0].opacity !== undefined ?
-              Math.round(node.fills[0].opacity * 100) + '%' :
-              '100%';
-          }
+          // スタイル情報を取得
+          const styleInfo = getTextStyleInfo(node);
 
-          // フォント情報の安全な取得
-          const fontName = node.fontName || {};
-          const fontFamily = fontName.family || '';
-          const fontStyle = fontName.style || '';
-
-          try {
-            return {
-              // Basic Info
-              id: node.id || '',
-              name: node.name || '',
-              pageName: pageName,
-              frame1: topLevelFrame,
-              characters: node.characters || '',
-
-              // Typography
-              fontFamily: fontFamily,
-              fontStyle: fontStyle,
-              fontSize: Math.round(node.fontSize || 0),
-              lineHeight: typeof node.lineHeight === 'object' ?
-                Math.round(node.lineHeight.value) + (node.lineHeight.unit || 'px') :
-                'AUTO',
-              letterSpacing: typeof node.letterSpacing === 'object' ?
-                Math.round(node.letterSpacing.value) + (node.letterSpacing.unit || 'px') :
-                '0%',
-              textAlignHorizontal: node.textAlignHorizontal || '',
-              textAlignVertical: node.textAlignVertical || '',
-
-              // Fill
-              fillColor: fillColor,
-              fillOpacity: fillOpacity
-            };
-          } catch (error) {
-            console.error('Error processing node:', node.id, error);
-            return null;
-          }
+          return {
+            id: node.id || '',
+            name: node.name || '',
+            pageName: pageName,
+            frame1: topLevelFrame,
+            characters: node.characters || '',
+            fontSize: styleInfo.fontSize,
+            fontFamily: styleInfo.fontFamily,
+            fontStyle: styleInfo.fontStyle,
+            lineHeight: styleInfo.lineHeight,
+            letterSpacing: styleInfo.letterSpacing,
+            textAlignHorizontal: styleInfo.textAlignHorizontal,
+            textAlignVertical: styleInfo.textAlignVertical,
+            fillColor: styleInfo.fillColor,
+            fillOpacity: styleInfo.fillOpacity
+          };
         })
         .filter(Boolean)
     ];
@@ -448,15 +475,8 @@ figma.ui.onmessage = async (msg) => {
               parent = parent.parent;
             }
 
-            // カラー情報の取得
-            let fillColor = '';
-            let fillOpacity = '';
-            if (node.fills && node.fills.length > 0 && node.fills[0].type === 'SOLID') {
-              fillColor = rgbToHex(node.fills[0].color);
-              fillOpacity = node.fills[0].opacity !== undefined ?
-                Math.round(node.fills[0].opacity * 100) + '%' :
-                '100%';
-            }
+            // スタイル情報を取得
+            const styleInfo = getTextStyleInfo(node);
 
             return {
               id: node.id || '',
@@ -464,19 +484,15 @@ figma.ui.onmessage = async (msg) => {
               pageName: pageName,
               frame1: topLevelFrame,
               characters: node.characters || '',
-              fontFamily: node.fontName ? node.fontName.family : '',
-              fontStyle: node.fontName ? node.fontName.style : '',
-              fontSize: Math.round(node.fontSize || 0),
-              lineHeight: typeof node.lineHeight === 'object' ?
-                Math.round(node.lineHeight.value) + (node.lineHeight.unit || 'px') :
-                'AUTO',
-              letterSpacing: typeof node.letterSpacing === 'object' ?
-                Math.round(node.letterSpacing.value) + (node.letterSpacing.unit || 'px') :
-                '0%',
-              textAlignHorizontal: node.textAlignHorizontal || '',
-              textAlignVertical: node.textAlignVertical || '',
-              fillColor: fillColor,
-              fillOpacity: fillOpacity
+              fontFamily: styleInfo.fontFamily,
+              fontStyle: styleInfo.fontStyle,
+              fontSize: styleInfo.fontSize,
+              lineHeight: styleInfo.lineHeight,
+              letterSpacing: styleInfo.letterSpacing,
+              textAlignHorizontal: styleInfo.textAlignHorizontal,
+              textAlignVertical: styleInfo.textAlignVertical,
+              fillColor: styleInfo.fillColor,
+              fillOpacity: styleInfo.fillOpacity
             };
           })
           .filter(Boolean)
