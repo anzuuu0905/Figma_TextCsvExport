@@ -26,8 +26,9 @@
   </style>
 </head>
 <body>
-  <button onclick="exportToCSV()">CSVエクスポート</button>
   <div id="status"></div>
+    <button onclick="exportToCSV()">CSVエクスポート</button>
+
   <script>
     let extractedData = [];
 
@@ -93,12 +94,32 @@
       }
     }
 
-    onmessage = (event) => {
+  onmessage = (event) => {
       const msg = event.data.pluginMessage;
       if (msg.type === 'send-text-data') {
         extractedData = msg.data;
-        console.log('データを受信:', extractedData.length + '件');
-        updateStatus('データを受信しました。エクスポートボタンをクリックしてください。');
+        const count = extractedData.length - 1; // ヘッダー行を除いた件数
+        console.log('データを受信:', count + '件');
+
+        if (msg.isSelected) {
+          if (msg.selectedFrames.length > 0) {
+            // フレームまたはグループが選択されている場合
+            const selections = msg.selectedFrames.map(item => {
+              if (item.type === 'GROUP') {
+                return `Group「${item.name}」`;
+              } else if (item.type === 'FRAME') {
+                return `Layer「${item.name}」`;
+              }
+            }).join('、');
+            updateStatus(`${selections}の${count}件のテキストを検出しました。CSVエクスポートボタンをクリックしてください。`);
+          } else {
+            // 無効な選択（フレームやグループ以外）の場合
+            updateStatus(`フレームまたはグループを選択してください。`);
+          }
+        } else {
+          // 何も選択されていない場合
+          updateStatus(`全Layerの${count}件のテキストを検出しました。CSVエクスポートボタンをクリックしてダウンロードしてください。`);
+        }
       }
     };
   </script>

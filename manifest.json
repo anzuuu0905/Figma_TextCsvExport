@@ -1,6 +1,6 @@
 {
-  "name": "Text Import/Export",
-  "id": "1436581678590803608",
+  "name": "Text CSV Export",
+  "id": "1471685876688579381",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -15,3 +15,4 @@
   },
   "editorType": ["figma"]
 }
+

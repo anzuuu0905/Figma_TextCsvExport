@@ -274,7 +274,14 @@ async function processAndSendTextData(textNodes, source = '') {
   // UIにデータを送信
   figma.ui.postMessage({
     type: 'send-text-data',
-    data: extractedData
+    data: extractedData,
+    isSelected: figma.currentPage.selection.length > 0,
+    selectedFrames: figma.currentPage.selection
+      .filter(node => node.type === "FRAME" || node.type === "GROUP")
+      .map(node => ({
+        name: node.name,
+        type: node.type
+      }))
   });
 }
 
