@@ -104,12 +104,12 @@ function getTextStyleInfo(node) {
   let fontStyle = 'Mixed';
   let lineHeight = 'Mixed';
   let letterSpacing = 'Mixed';
-  let textAlignHorizontal = 'Mixed';
-  let textAlignVertical = 'Mixed';
+  // let textAlignHorizontal = 'Mixed';
+  // let textAlignVertical = 'Mixed';
   let fillColor = 'Mixed';
-  let fillOpacity = 'Mixed';
-  let positionX = Math.round(node.x * 100) / 100;
-  let positionY = Math.round(node.y * 100) / 100;
+  // let fillOpacity = 'Mixed';  // コメントアウト
+  // let positionX = Math.round(node.x * 100) / 100;
+  // let positionY = Math.round(node.y * 100) / 100;
 
   // フォントサイズ
   if (typeof node.fontSize !== 'symbol') {
@@ -145,12 +145,12 @@ function getTextStyleInfo(node) {
   }
 
   // テキストの配置
-  if (typeof node.textAlignHorizontal !== 'symbol') {
+  /* if (typeof node.textAlignHorizontal !== 'symbol') {
     textAlignHorizontal = node.textAlignHorizontal || '';
   }
   if (typeof node.textAlignVertical !== 'symbol') {
     textAlignVertical = node.textAlignVertical || '';
-  }
+  } */
 
   // カラー情報
   if (node.fills &&
@@ -158,9 +158,9 @@ function getTextStyleInfo(node) {
       typeof node.fills !== 'symbol' &&
       node.fills[0].type === 'SOLID') {
     fillColor = rgbToHex(node.fills[0].color);
-    fillOpacity = node.fills[0].opacity !== undefined ?
-      Math.round(node.fills[0].opacity * 100) + '%' :
-      '100%';
+    // fillOpacity = node.fills[0].opacity !== undefined ?
+    //   Math.round(node.fills[0].opacity * 100) + '%' :
+    //   '100%';  // コメントアウト
   }
 
   return {
@@ -169,12 +169,12 @@ function getTextStyleInfo(node) {
     fontStyle,
     lineHeight,
     letterSpacing,
-    textAlignHorizontal,
-    textAlignVertical,
+    // textAlignHorizontal,
+    // textAlignVertical,
     fillColor,
-    fillOpacity,
-    positionX,
-    positionY
+    // fillOpacity,  // コメントアウト
+    // positionX,
+    // positionY
   };
 }
 
@@ -187,29 +187,23 @@ async function extractTextData(textNodes) {
   const extractedData = [
     {
       // ヘッダー情報
-      id: 'ID',
-      name: 'Name',
-      pageName: 'PageName',
-      frame1: 'ParentFrame',
-      characters: 'Characters',
+      frame1: 'Layer',  // 順序を最初に
+      name: 'Name',     // 2番目に
+      characters: 'Text',
       fontFamily: 'FontFamily',
       fontStyle: 'FontStyle',
       fontSize: 'FontSize',
       lineHeight: 'LineHeight',
       letterSpacing: 'LetterSpacing',
-      textAlignHorizontal: 'TextAlignHorizontal',
-      textAlignVertical: 'TextAlignVertical',
-      fillColor: 'FillColor',
-      fillOpacity: 'FillOpacity',
-      positionX: 'PositionX',
-      positionY: 'PositionY'
+      fillColor: 'Color',
+      opacity: 'Opacity'
     },
     ...textNodes
       .filter(node => !node.id.includes(';'))
       .map(node => {
         let topLevelFrame = '';
         let parent = node.parent;
-        let pageName = '';
+        let pageName = '';  // この変数は残してOK（内部処理で使用）
 
         while (parent) {
           if (parent.type === "PAGE") {
@@ -222,26 +216,19 @@ async function extractTextData(textNodes) {
           parent = parent.parent;
         }
 
-        // スタイル情報を取得
         const styleInfo = getTextStyleInfo(node);
 
         return {
-          id: node.id || '',
-          name: node.name || '',
-          pageName: pageName,
-          frame1: topLevelFrame,
+          frame1: topLevelFrame,  // 順序を最初に
+          name: node.name || '',   // 2番目に
           characters: node.characters || '',
           fontSize: styleInfo.fontSize,
           fontFamily: styleInfo.fontFamily,
           fontStyle: styleInfo.fontStyle,
           lineHeight: styleInfo.lineHeight,
           letterSpacing: styleInfo.letterSpacing,
-          textAlignHorizontal: styleInfo.textAlignHorizontal,
-          textAlignVertical: styleInfo.textAlignVertical,
           fillColor: styleInfo.fillColor,
-          fillOpacity: styleInfo.fillOpacity,
-          positionX: styleInfo.positionX,
-          positionY: styleInfo.positionY
+          opacity: Math.round((node.opacity || 1) * 100) + '%'
         };
       })
       .filter(Boolean)

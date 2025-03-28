@@ -39,25 +39,17 @@
     function downloadCSV(data) {
       if (data.length === 0) return;
 
-      // 最初の行をヘッダーとして使用
-      const firstRow = data[0];
       const rows = data.map(item => [
-        item.id,
-        item.name,
-        item.pageName,
         item.frame1,
+        item.name,
         item.characters,
         item.fontSize,
         item.fontFamily,
         item.fontStyle,
         item.lineHeight,
         item.letterSpacing,
-        item.textAlignHorizontal,
-        item.textAlignVertical,
         item.fillColor,
-        item.fillOpacity,
-        item.positionX,
-        item.positionY
+        item.opacity
       ]);
 
       const csvContent = rows.map(row =>
