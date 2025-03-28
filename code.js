@@ -104,12 +104,7 @@ function getTextStyleInfo(node) {
   let fontStyle = 'Mixed';
   let lineHeight = 'Mixed';
   let letterSpacing = 'Mixed';
-  // let textAlignHorizontal = 'Mixed';
-  // let textAlignVertical = 'Mixed';
   let fillColor = 'Mixed';
-  // let fillOpacity = 'Mixed';  // コメントアウト
-  // let positionX = Math.round(node.x * 100) / 100;
-  // let positionY = Math.round(node.y * 100) / 100;
 
   // フォントサイズ
   if (typeof node.fontSize !== 'symbol') {
@@ -144,23 +139,12 @@ function getTextStyleInfo(node) {
     }
   }
 
-  // テキストの配置
-  /* if (typeof node.textAlignHorizontal !== 'symbol') {
-    textAlignHorizontal = node.textAlignHorizontal || '';
-  }
-  if (typeof node.textAlignVertical !== 'symbol') {
-    textAlignVertical = node.textAlignVertical || '';
-  } */
-
   // カラー情報
   if (node.fills &&
       node.fills.length > 0 &&
       typeof node.fills !== 'symbol' &&
       node.fills[0].type === 'SOLID') {
     fillColor = rgbToHex(node.fills[0].color);
-    // fillOpacity = node.fills[0].opacity !== undefined ?
-    //   Math.round(node.fills[0].opacity * 100) + '%' :
-    //   '100%';  // コメントアウト
   }
 
   return {
@@ -169,12 +153,7 @@ function getTextStyleInfo(node) {
     fontStyle,
     lineHeight,
     letterSpacing,
-    // textAlignHorizontal,
-    // textAlignVertical,
     fillColor,
-    // fillOpacity,  // コメントアウト
-    // positionX,
-    // positionY
   };
 }
 
